@@ -23,10 +23,31 @@ struct Map2D* new_map_2d(int width, int height) {
     map->data   = (char*)malloc(sizeof(char) * width * height);
     for (int y = 0; y < map->height; y ++) {
         for (int x = 0; x < map->width; x ++) {
-            int boolean = ((x + y) % 2 == 0) ? 1 : 0;
-            char ch = boolean ? '*' : ' ';
+            int boolean = ((x * y / 16) % 8 == 0) ? 1 : 0;
+            char ch = boolean ? 'o' : '.';
             set_map_2d(map, x, y, ch);
         }
+    }
+    return map;
+}
+
+struct Map2D* new_map_2d_from_initializer(char** map_initializer) {
+    int width = 0;
+    int height = 0;
+    int y;
+    for (y = 0; map_initializer[y] != NULL; y ++) {
+         int len = strlen(map_initializer[y]);
+	 if (width < len) {
+	     width = len;
+	 }
+    }
+    height = y;
+    struct Map2D* map = new_map_2d(width, height);
+    for (y = 0; y < height; y ++) {
+        for (int x = 0; x < width; x ++) {
+	    char ch = map_initializer[y][x];
+	    set_map_2d(map, x, y, ch);
+	}
     }
     return map;
 }
@@ -102,10 +123,12 @@ struct Adventure {
     struct Map2D* map;
 };
 
+// example of function definition is passed a 1-dimensional array
 int adventure_is_at_location(struct Adventure* self, const char* location_name) {
     return (strncmp(self->location_name, location_name, LOCATION_NAME_MAX_LENGTH) == 0);
 }
 
+// example of function definition is passed a 1-dimensional array
 int adventure_user_command_equals(struct Adventure* self, const char* user_command) {
     return (strncmp(self->user_command, user_command, USER_COMMAND_MAX_LENGTH) == 0);
 }
@@ -136,13 +159,33 @@ void adventure_prompt_user_for_command(struct Adventure* adventure) {
     adventure->user_command[user_command_length - 1] = '\0';
 }
 
-struct Adventure* new_adventure(char* location_name, double dollars) {
-    printf("sizeof(struct Adventure) = %lu bytes\n", sizeof(struct Adventure));
+// 2D array (char**)
+char* default_map_initializer[] = {
+    "................................",
+    "................................",
+    "................................",
+    ".............*******............",
+    "............*.......*...........",
+    "............*.......&...........",
+    "............*...................",
+    "............*.......&...........",
+    ".............*******............",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    NULL
+};
+
+struct Adventure* new_adventure(char* location_name, double dollars, char** map_initializer) {
     struct Adventure* adventure = (struct Adventure*)malloc(sizeof(struct Adventure));
     strcpy(adventure->location_name, location_name);
     strcpy(adventure->user_command, "");
     adventure->dollars = dollars;
-    adventure->map = new_map_2d(32, 16);
+    adventure->map = new_map_2d_from_initializer(map_initializer);
     return adventure;
 }
 
@@ -199,7 +242,13 @@ void adventure_execute_user_command(struct Adventure* adventure) {
 
 int main(int argc, char** argv) {
     printf("This is an example adventure app.\n");
-    struct Adventure* adventure = new_adventure((char*)start_location_name, 0);
+    printf("sizeof(struct Adventure) = %lu bytes\n", sizeof(struct Adventure));
+    printf("sizeof(int) = %lu bytes\n", sizeof(int));
+    printf("sizeof(double) = %lu bytes\n", sizeof(double));
+    printf("sizeof(struct Map2D) = %lu bytes\n", sizeof(struct Map2D));
+    printf("sizeof(void*) = %lu bytes\n", sizeof(void*));
+    double dollars = 0;
+    struct Adventure* adventure = new_adventure((char*)start_location_name, dollars, default_map_initializer);
     while (! adventure_is_done(adventure)) {
         adventure_print_location_description(adventure);
         adventure_prompt_user_for_command(adventure);
