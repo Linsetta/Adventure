@@ -13,6 +13,8 @@ const bool true  = (bool)(!0);
 const char* start_location_name = "home";
 const char* finish_location_name = "finish";
 
+// Map2D BEGIN
+
 typedef struct Map2D_s {
     int   width;
     int   height;
@@ -121,11 +123,76 @@ void print_map_2d(Map2D* map) {
     }
 }
 
+// Map2D END
+
+
+// CommandHistory BEGIN
+
+typedef struct CommandHistory_s {
+    int    commands_length;
+    char** commands;
+} CommandHistory;
+
+CommandHistory* new_command_history(int commands_length) {
+    CommandHistory* command_history = (CommandHistory*)malloc(sizeof(CommandHistory));
+    command_history->commands_length = commands_length;
+    command_history->commands = (char**)malloc(sizeof(char*) * command_history->commands_length);
+    // initialize all elements in (char**) array
+    for (int i = 0; i < command_history->commands_length; i ++) {
+        command_history->commands[i] = (char*)NULL; // initiailize single element in (char**) array
+    }
+    return command_history;
+}
+
+void free_command_history(CommandHistory* command_history) {
+    for (int i = 0; i < command_history->commands_length; i ++) {
+        if (command_history->commands[i] != NULL) {
+	    free (command_history->commands[i]);
+	}
+    }
+    free(command_history->commands);
+    free(command_history);
+}
+
+void print_command_history(CommandHistory* command_history) {
+    printf("Command history = [\n");
+    for (int i = 0; i < command_history->commands_length; i ++) {
+        if (command_history->commands[i] != NULL) {
+	    printf("  %s\n", command_history->commands[i]);
+	}
+    }
+    printf("]\n");
+}
+
+void command_history_add_command(CommandHistory* command_history, char* command) {
+    int command_length = strlen(command);
+    char* new_command = (char*)malloc(sizeof(char) * (command_length + 1));
+    strcpy(new_command, command);
+    // <-- new_command is initialized at this point
+    char* last_command = command_history->commands[command_history->commands_length - 1];
+    // free last_command string, if it exists
+    if (last_command != NULL) {
+        free(last_command);
+    }
+    // move all strings +1 in array of strings (char**)
+    for (int i = command_history->commands_length - 2; i >= 0; i --) {
+        command_history->commands[i + 1] = command_history->commands[i];
+    }
+    // add new_command to front of array of strings (char**)
+    command_history->commands[0] = new_command;
+}
+
+// CommandHistory END
+
+
+// Adventure BEGIN
+
 typedef struct Adventure_s {
     char location_name[LOCATION_NAME_MAX_LENGTH];
     char user_command[USER_COMMAND_MAX_LENGTH];  
     double dollars;
     Map2D* map;
+    CommandHistory* command_history;
 } Adventure;
 
 // example of function definition is passed a 1-dimensional array
@@ -140,6 +207,7 @@ bool adventure_user_command_equals(Adventure* adventure, const char* user_comman
 
 void adventure_print_location_description(Adventure* adventure) {
     print_map_2d(adventure->map);
+    print_command_history(adventure->command_history);
     if (adventure_is_at_location(adventure, "home")) {
         printf("You are at home.  There is a street to the North.\n");
     } else if (adventure_is_at_location(adventure, "street")) {
@@ -162,6 +230,8 @@ void adventure_prompt_user_for_command(Adventure* adventure) {
     fgets(adventure->user_command, USER_COMMAND_MAX_LENGTH, stdin);
     int user_command_length = strlen(adventure->user_command);
     adventure->user_command[user_command_length - 1] = '\0';
+    // <--- we have the user command here!
+    command_history_add_command(adventure->command_history, adventure->user_command);
 }
 
 // 2D array (char**)
@@ -185,16 +255,18 @@ char* default_map_initializer[] = {
     NULL
 };
 
-Adventure* new_adventure(char* location_name, double dollars, char** map_initializer) {
+Adventure* new_adventure(char* location_name, double dollars, char** map_initializer, int commands_length) {
     Adventure* adventure = (Adventure*)malloc(sizeof(Adventure));
     strcpy(adventure->location_name, location_name);
     strcpy(adventure->user_command, "");
     adventure->dollars = dollars;
     adventure->map = new_map_2d_from_initializer(map_initializer);
+    adventure->command_history = new_command_history(commands_length);
     return adventure;
 }
 
 void free_adventure(Adventure* adventure) {
+    free_command_history(adventure->command_history);
     free_map_2d(adventure->map);
     free(adventure);
 }
@@ -245,6 +317,9 @@ void adventure_execute_user_command(Adventure* adventure) {
     }
 }
 
+// Adventure END
+
+
 int main(int argc, char** argv) {
     printf("This is an example adventure app.\n");
     printf("sizeof(Adventure) = %lu bytes\n", sizeof(Adventure));
@@ -253,7 +328,8 @@ int main(int argc, char** argv) {
     printf("sizeof(Map2D) = %lu bytes\n", sizeof(Map2D));
     printf("sizeof(void*) = %lu bytes\n", sizeof(void*));
     double dollars = 0;
-    Adventure* adventure = new_adventure((char*)start_location_name, dollars, default_map_initializer);
+    int commands_length = 10;
+    Adventure* adventure = new_adventure((char*)start_location_name, dollars, default_map_initializer, commands_length);
     while (! adventure_is_done(adventure)) {
         adventure_print_location_description(adventure);
         adventure_prompt_user_for_command(adventure);
